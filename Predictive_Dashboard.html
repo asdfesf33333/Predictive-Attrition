@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Predictive Attrition Dashboard | High Risk Analysis</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* Modern Dark Red Theme with Glassmorphism */
+        :root {
+            --bg-color: #0f0a0a;
+            --surface-color: rgba(30, 20, 20, 0.6);
+            --surface-border: rgba(255, 77, 77, 0.2);
+            --surface-hover: rgba(45, 25, 25, 0.8);
+            --primary-red: #ff3333;
+            --secondary-red: #cc0000;
+            --text-main: #f0f0f0;
+            --text-muted: #a0a0a0;
+            --danger: #ff0000;
+            --font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: var(--font-family);
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            min-height: 100vh;
+            background-image:
+                radial-gradient(circle at 15% 50%, rgba(255, 51, 51, 0.05) 0%, transparent 50%),
+                radial-gradient(circle at 85% 30%, rgba(204, 0, 0, 0.05) 0%, transparent 50%);
+            padding: 2rem;
+            overflow-x: hidden;
+        }
+
+        /* Glassmorphism Utilities */
+        .glass {
+            background: var(--surface-color);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--surface-border);
+            border-radius: 16px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+        }
+
+        /* Layout */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--surface-border);
+            animation: fadeInDown 0.8s ease-out;
+        }
+
+        h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            background: linear-gradient(90deg, #fff, var(--primary-red));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 20px rgba(255, 51, 51, 0.2);
+        }
+
+        /* KPIs */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+            animation: fadeInUp 0.8s ease-out 0.2s both;
+        }
+
+        .kpi-card {
+            padding: 1.5rem;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.3s ease;
+        }
+
+        .kpi-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .kpi-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, transparent, var(--primary-red), transparent);
+        }
+
+        .kpi-value {
+            font-size: 3rem;
+            font-weight: 800;
+            color: var(--primary-red);
+            margin: 0.5rem 0;
+            text-shadow: 0 0 20px rgba(255, 51, 51, 0.4);
+        }
+
+        .kpi-label {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Main Content Grid */
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            animation: fadeInUp 0.8s ease-out 0.4s both;
+        }
+
+        @media (max-width: 1024px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .section-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .section-title::before {
+            content: '';
+            display: inline-block;
+            width: 8px;
+            height: 24px;
+            background: var(--primary-red);
+            border-radius: 4px;
+        }
+
+        /* Employee List */
+        .employee-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            max-height: 600px;
+            overflow-y: auto;
+            padding-right: 0.5rem;
+        }
+
+        .employee-list::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .employee-list::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 4px;
+        }
+
+        .employee-list::-webkit-scrollbar-thumb {
+            background: var(--surface-border);
+            border-radius: 4px;
+        }
+
+        .employee-list::-webkit-scrollbar-thumb:hover {
+            background: var(--primary-red);
+        }
+
+        .employee-card {
+            padding: 1.25rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .employee-card:hover,
+        .employee-card.active {
+            background: var(--surface-hover);
+            border-color: var(--primary-red);
+        }
+
+        .emp-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .emp-name {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: white;
+        }
+
+        .emp-id {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .risk-badge {
+            background: rgba(255, 51, 51, 0.1);
+            color: var(--primary-red);
+            border: 1px solid var(--primary-red);
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .risk-factors {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 0.75rem;
+        }
+
+        .factor-tag {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 0.2rem 0.6rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        /* Chart Area */
+        .chart-container {
+            padding: 1.5rem;
+            height: 600px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chart-wrapper {
+            flex: 1;
+            position: relative;
+            width: 100%;
+        }
+
+        .empty-state {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: var(--text-muted);
+            font-size: 1.1rem;
+            text-align: center;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .loader {
+            display: none;
+            width: 48px;
+            height: 48px;
+            border: 5px solid var(--surface-border);
+            border-bottom-color: var(--primary-red);
+            border-radius: 50%;
+            animation: rotation 1s linear infinite;
+            margin: 2rem auto;
+        }
+
+        /* Animations */
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes rotation {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Utility */
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <header>
+            <h1>Strict Attrition Predictor</h1>
+        </header>
+
+        <div id="loader" class="loader"></div>
+
+        <div id="dashboardContent" class="hidden">
+            <div class="kpi-grid">
+                <div class="kpi-card glass">
+                    <div class="kpi-label">Total Workforce Processed</div>
+                    <div class="kpi-value" id="kpiTotal">-</div>
+                </div>
+                <div class="kpi-card glass">
+                    <div class="kpi-label">High Risk Employees (Strict)</div>
+                    <div class="kpi-value" id="kpiAtRisk">-</div>
+                </div>
+                <div class="kpi-card glass">
+                    <div class="kpi-label">Last Analysis Run</div>
+                    <div class="kpi-value" id="kpiUpdated" style="font-size: 1.5rem; margin-top: 1.5rem;">-</div>
+                </div>
+            </div>
+
+            <div class="main-grid">
+                <!-- Employee List Section -->
+                <div>
+                    <h2 class="section-title">Flagged Personnel</h2>
+                    <div class="employee-list" id="employeeList">
+                        <!-- Employee Cards Injected Here -->
+                    </div>
+                </div>
+
+                <!-- Chart Section -->
+                <div class="chart-container glass">
+                    <h2 class="section-title" id="chartTitle">Behavioral Deviation Analysis</h2>
+                    <div class="chart-wrapper">
+                        <div id="emptyChartState" class="empty-state">
+                            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+                                style="color: var(--surface-border);">
+                                <path d="M3 3v18h18" />
+                                <path d="m19 9-5 5-4-4-3 3" />
+                            </svg>
+                            Select an employee to view their deviation patterns over the last 14 records.
+                        </div>
+                        <canvas id="attritionChart" class="hidden"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let rawData = null;
+        let attritionChartInstance = null;
+
+        // Embedded URL
+        const APP_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw3UFY7sEacgDDAsCVXgkNN7exExPD3btFxHI6IMc7-JPT03OD3M3NuttE9z6cDVR2CTg/exec";
+
+        // Initialize auto-fetch
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchData();
+        });
+
+        function fetchData() {
+            // Show Loader, Hide Content
+            document.getElementById('loader').style.display = 'block';
+            document.getElementById('dashboardContent').classList.add('hidden');
+
+            // Setup JSONP callback
+            const callbackName = 'jsonpCallback_' + Math.round(100000 * Math.random());
+
+            // Define callback function globally
+            window[callbackName] = function (response) {
+                document.getElementById('loader').style.display = 'none';
+
+                if (response.status === 'success') {
+                    rawData = response.data;
+                    renderDashboard();
+                } else {
+                    alert("Error from server: " + response.message);
+                }
+
+                // Cleanup
+                delete window[callbackName];
+                document.body.removeChild(script);
+            };
+
+            // Create script tag for JSONP
+            const script = document.createElement('script');
+            const sep = APP_SCRIPT_URL.includes('?') ? '&' : '?';
+            script.src = `${APP_SCRIPT_URL}${sep}callback=${callbackName}`;
+
+            script.onerror = function () {
+                document.getElementById('loader').style.display = 'none';
+                alert("Failed to connect to the Apps Script URL. Check the URL and try again.");
+                delete window[callbackName];
+            };
+
+            document.body.appendChild(script);
+        }
+
+        function renderDashboard() {
+            document.getElementById('dashboardContent').classList.remove('hidden');
+
+            // Render KPIs
+            document.getElementById('kpiTotal').textContent = rawData.summary.totalEmployees;
+            document.getElementById('kpiAtRisk').textContent = rawData.summary.atRiskCount;
+
+            const d = new Date(rawData.summary.lastUpdated);
+            document.getElementById('kpiUpdated').textContent = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+            // Render List
+            const listContainer = document.getElementById('employeeList');
+            listContainer.innerHTML = '';
+
+            if (rawData.atRiskEmployees.length === 0) {
+                listContainer.innerHTML = '<div class="glass" style="padding: 2rem; text-align: center; color: var(--text-muted);">No high-risk employees detected based on strict thresholds.</div>';
+                return;
+            }
+
+            rawData.atRiskEmployees.forEach((emp, index) => {
+                const card = document.createElement('div');
+                card.className = 'employee-card glass';
+                card.onclick = () => selectEmployee(emp, card);
+
+                // Risk Factors Tags
+                const tagsHTML = emp.factors.map(f => `<span class="factor-tag">${f}</span>`).join('');
+
+                card.innerHTML = `
+                    <div class="emp-header">
+                        <div>
+                            <div class="emp-name">${emp.empName}</div>
+                            <div class="emp-id">ID: ${emp.empId}</div>
+                        </div>
+                        <div class="risk-badge">Risk: ${emp.riskScore}%</div>
+                    </div>
+                    <div style="font-size: 0.85rem; color: var(--text-main); margin-top: 0.5rem;">
+                        Severe Deviations Detected: <strong style="color: var(--primary-red);">${emp.deviations}</strong>
+                    </div>
+                    <div class="risk-factors">
+                        ${tagsHTML}
+                    </div>
+                `;
+                listContainer.appendChild(card);
+            });
+        }
+
+        function selectEmployee(emp, cardElement) {
+            // Highlight card
+            document.querySelectorAll('.employee-card').forEach(c => c.classList.remove('active'));
+            cardElement.classList.add('active');
+
+            // Show Chart Area
+            document.getElementById('emptyChartState').classList.add('hidden');
+            const canvas = document.getElementById('attritionChart');
+            canvas.classList.remove('hidden');
+
+            document.getElementById('chartTitle').innerHTML = `Behavioral Deviation: <span style="color:var(--primary-red)">${emp.empName}</span>`;
+
+            renderChart(emp.chartData);
+        }
+
+        function renderChart(chartData) {
+            const ctx = document.getElementById('attritionChart').getContext('2d');
+
+            if (attritionChartInstance) {
+                attritionChartInstance.destroy();
+            }
+
+            // Custom Chart.js defaults for Dark Theme
+            Chart.defaults.color = '#a0a0a0';
+            Chart.defaults.font.family = "'Inter', sans-serif";
+
+            attritionChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: chartData.labels,
+                    datasets: [
+                        {
+                            label: 'Actual Work Duration (hrs)',
+                            data: chartData.actual,
+                            borderColor: '#ff3333',
+                            backgroundColor: 'rgba(255, 51, 51, 0.1)',
+                            borderWidth: 3,
+                            pointBackgroundColor: '#ff3333',
+                            pointBorderColor: '#fff',
+                            pointRadius: 5,
+                            pointHoverRadius: 7,
+                            fill: true,
+                            tension: 0.4
+                        },
+                        {
+                            label: 'Expected Shift Duration (hrs)',
+                            data: chartData.expected,
+                            borderColor: 'rgba(255, 255, 255, 0.2)',
+                            borderWidth: 2,
+                            borderDash: [5, 5],
+                            pointRadius: 0,
+                            fill: false,
+                            tension: 0
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                usePointStyle: true,
+                                padding: 20
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(20, 10, 10, 0.9)',
+                            titleColor: '#fff',
+                            bodyColor: '#f0f0f0',
+                            borderColor: 'rgba(255, 51, 51, 0.3)',
+                            borderWidth: 1,
+                            padding: 10,
+                            displayColors: true,
+                            callbacks: {
+                                label: function (context) {
+                                    return context.dataset.label + ': ' + context.parsed.y.toFixed(2) + ' hrs';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 14,
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.05)',
+                                drawBorder: false
+                            },
+                            title: {
+                                display: true,
+                                text: 'Hours',
+                                color: '#a0a0a0'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false
+                            }
+                        }
+                    },
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+
+</html>
